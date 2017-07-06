@@ -145,7 +145,7 @@ outLog.init = function()		    -- подготовить выходной кат�
 	os.remove('out/TEST.txt')
    end
    local f, ermsg = io.open("out/data.csv", 'w')   -- Открываем на перезапись
-   print ("Output file: out/data.csv", ermsg)
+   print ("Output file: out/data.csv", ermsg or '')
    f:close()
 end
 outLog.doOutput = function (Parts)	    -- Добавляет в data.csv записи Parts 
@@ -170,8 +170,9 @@ outLog.doOutput = function (Parts)	    -- Добавляет в data.csv зап�
 		excel=(excel..tmp.."\n")										-- добавляем получившуюся строку в буфер
 		count = count+1
 	end
-	print ("Saved "..count.." items in file")
     assert(f:write(excel))												-- добавляем буфер к файлу
+	print ("Saved "..count.." items in file")
+	f:flush()
 	f:close()
 end
 
@@ -179,7 +180,7 @@ end
 function procParts(Parts)					--удалить из базы неактуальные записи, стереть картинки, посчитать статистику
 	--isDebugMode=true
 	local sok, snew, sdel = 0,0,0			REM(">>> procParts()")
-	for _, v in pairs(Parts) do				REM( "Проверяем", _)
+	for k, v in pairs(Parts) do				REM( "Проверяем", _)
 		if v.status == "new" then			REM("- новый")
 			v.status = "done"
 			snew=snew+1
@@ -189,9 +190,10 @@ function procParts(Parts)					--удалить из базы неактуаль�
 		elseif not v.status  then			REM("- старый не подтвержденный")
 			sdel=sdel+1
 			for _, v2 in pairs(v.Pics) do	
-				err = os.remove('out/'..v2);	REM("Удаляется "..v2, err)
+				err = os.remove('out/'..v2);	
+				print ("Deleting file "..v2, err or '' )
 			end
-			v = nil							--гуд бай, запись
+			Parts[k] = nil							--гуд бай, запись
 		end
 	end
 	return sok, snew, sdel
@@ -355,7 +357,7 @@ for i=2, pq do					-- проходим по остальным страница�
 	local newurl=url..urlpost..tostring(i)
     print ("Processing page #"..tostring(i).." of "..tostring(pq))
 	local delay 
-	if loadedQ <7 then delay = 1
+	if loadedQ <9 then delay = nil
 	else delay=300
 	end
 	page = getNotEmpty(newurl, delay)
@@ -376,7 +378,7 @@ outLog.doOutput(Parts)
 local Hour2 = os.date("%H")
 local Min2 = os.date("%M")
 print ("\n    TOTAL:\n    ------")
-print ("New: "..snew.." Confirmed old: "..sok.." Deleted: "..sdel.."Errors: "..serrors)
+print ("New: "..snew.." Confirmed old: "..sok.." Deleted: "..sdel.." Errors: "..serrors)
 print ("Elapsed time is "..tostring(Hour2-Hour1)..":"..tostring(Min2-Min1))
 
 
