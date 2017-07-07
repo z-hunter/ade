@@ -6,9 +6,9 @@ local Kx1 = 1						-- Ценовой умножитель 1
 local Kx2 = 1.1						-- Ценовой умножитель 2
 local Kn = 200						-- Порог цены, ниже которого умножается на Kx1 а с него и выше на Kx2
 
-
 require 'proceed'
-os.execute("chcp 65001 >nul") print(Sign())
+os.execute("cls") os.execute("chcp 65001 >nul") print(Sign())
+local colors = require 'ansicolors'
 require 'luacurl'
 require 'harvester'
 local utf8 = require 'lua-utf8'
@@ -355,7 +355,7 @@ outLog.doOutput(Parts)
 for i=2, pq do					-- проходим по остальным страницам 
     local sertmp=0
 	local newurl=url..urlpost..tostring(i)
-    print ("Processing page #"..tostring(i).." of "..tostring(pq))
+    print( colors('%{redbg}Processing page #'..tostring(i)..' of '..tostring(pq)) )
 	local delay 
 	if loadedQ <9 then delay = nil
 	else delay=300
@@ -378,7 +378,7 @@ outLog.doOutput(Parts)
 local Hour2 = os.date("%H")
 local Min2 = os.date("%M")
 print ("\n    TOTAL:\n    ------")
-print ("New: "..snew.." Confirmed old: "..sok.." Deleted: "..sdel.." Errors: "..serrors)
+print (colors("%{redbg}New: "..snew.." Confirmed old: "..sok.." Deleted: "..sdel.." Errors: "..serrors))
 print ("Elapsed time is "..tostring(Hour2-Hour1)..":"..tostring(Min2-Min1))
 
 

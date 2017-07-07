@@ -103,5 +103,5 @@ end
 
 
 function Sign()
-	return'Ϟ  A-D-Extractor v.0.5 (c) Michael.Voitovich@gmail.com, 2017    : Loading...'
+	return'Ϟ   A-D-Extractor v.0.5 (c) Michael.Voitovich@gmail.com, 2017  '
 end
