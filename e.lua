@@ -7,7 +7,7 @@ local Kx2 = 1.1						-- Ценовой умножитель 2
 local Kn = 200						-- Порог цены, ниже которого умножается на Kx1 а с него и выше на Kx2
 
 require 'proceed'
-os.execute("cls") os.execute("chcp 65001 >nul") print(Sign())
+os.execute("cls")  print(Sign())  os.execute("chcp 65001 >nul")
 local colors = require 'ansicolors'
 require 'luacurl'
 require 'harvester'
@@ -137,6 +137,7 @@ outLog.doInput = function ()						--> Parts table or nil if no file
 end
 
 outLog.init = function()		    -- подготовить выходной каталог и создать/обнулить файл данных
+   os.execute("copy /Y out\\data.csv *.bak >nul")  
    local f = io.open('out/TEST.txt', 'w')
    if not f then
 	os.execute('mkdir out')
@@ -371,14 +372,14 @@ for i=2, pq do					-- проходим по остальным страница�
 end
 
 
-print ("Extraction finished.")
+print ("Extraction finished. Finalysing output...")
 outLog.init()
 local sok, snew, sdel = procParts(Parts)
 outLog.doOutput(Parts)
 local Hour2 = os.date("%H")
 local Min2 = os.date("%M")
 print ("\n    TOTAL:\n    ------")
-print (colors("%{redbg}New: "..snew.." Confirmed old: "..sok.." Deleted: "..sdel.." Errors: "..serrors))
+print (colors("%{redbg}New: "..snew.."  Confirmed: "..sok.."  Deleted: "..sdel.."  Errors: "..serrors))
 print ("Elapsed time is "..tostring(Hour2-Hour1)..":"..tostring(Min2-Min1))
 
 
