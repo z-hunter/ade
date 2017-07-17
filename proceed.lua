@@ -1,23 +1,24 @@
-local utf8 = require 'lua-utf8'
+dofile "findfuzzy.lua"
+dofile "models.lua"
 
 
-function Proceed (a)	
+local function clearJunk(a)
 	a = utf8.gsub(a,"%("," ")			-- чистим от скобок
 	a = utf8.gsub(a,"%)"," ")			-- чистим от скобок
 	a = utf8.gsub(a,"%s+%l(%s+%d%d%d%d%s+)", "%1") 
     a = utf8.gsub(a,"(%d%d%s?)г%. ", "%1 ")  
-    a = utf8.gsub(a,"Рэйндж%s+Ровер","Range Rover")
-    a = utf8.gsub(a,"Ренжд%sРовер","Range Rover")
+    a = utf8.gsub(a,"Рэйндж%s+Ровер","Land-Rover Range Rover")
+    a = utf8.gsub(a,"Ренжд%sРовер","Land-Rover Range Rover")
     a = utf8.gsub(a,"Лэнд%s+Ровер","Land-Rover")
     a = utf8.gsub(a,"Ленд%s+Ровер","Land-Rover")
-    a = utf8.gsub(a,"Рендж%s+Ровер","Range Rover")
+    a = utf8.gsub(a,"Рендж%s+Ровер","Land-Rover Range Rover")
     a = utf8.gsub(a,"Грейт%s+Волл","Great-Wall")
     a = utf8.gsub(a,"Мерседес%s+Бенц","Mercedes")
     a = utf8.gsub(a,"Ссанг%s+Йонг","SsangYong")
-    a = utf8.gsub(a,"Он%s+До","Он_До")
+	return a
+end
 
-
-						         REM (">>>> Proceed", a)
+local function parseStr (a)							REM (">>> parseStr", a)						         
  
     local Mk, Md, Vs, Yr = ""
     
@@ -99,9 +100,77 @@ function Proceed (a)
 end
 
 
+local function parseStr2 (a)						REM (">>> parseStr2", a)		
+	
+	local function lookintable(T, str)
+		local ret = nil
+		for k,v in pairs(T) do
+			if k==str or v.nam==str then
+				ret=k
+				break
+			end
+		end
+		return ret
+	end
+	
+	local function lookintable2(T, str)
+		local ret = nil
+		for k,v in pairs(T) do
+			if k==str or v==str then
+				ret=k
+				break
+			end
+		end
+		return ret
+	end
+	
+	
+	local T= {}
+	local md
+	for k,v in pairs(Models) do
+		table.insert(T, k)
+		table.insert(T, v.nam)
+		--print(k, v.nam)
+	end
+	--print(findFuzzy(a, T))
+	local mk=lookintable(Models, findFuzzy(a, T) )
+	print("mk=",mk)	
+	if mk then	
+		T= {}
+		for k,v in pairs(Models[mk]) do
+			if k=="nam" then break end
+			table.insert(T, k)
+			if v~="" then table.insert(T, v) end
+			print(k, v)
+		end
+		--print(findFuzzy(a, T))
+		md = lookintable2(Models[mk], findFuzzy(a, T) )
+		print("md=",md)	
+		if md then
+			return mk, md
+		else
+			print( colors("%{redbg}Model is not recognized:", a) )
+			return nil
+		end		
+	else 
+		print( colors("%{redbg}Mark is not recognized:", a) )
+		return nil
+	end
 
+end;
+
+
+function Proceed(a) 							REM (">> Proceed", a)
+	a=clearJunk(a)	
+	local Mk, Md, Vs, Yr, Dt = parseStr (a)	
+	local Mk2, Md2  = parseStr2 (a)
+	
+	return Mk2, Md2, Vs, Yr, Dt
+end
 
 
 function Sign()
 	return'Ϟ   A-D-Extractor v.0.5 (c) Michael.Voitovich@gmail.com, 2017  '
 end
+
+

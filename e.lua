@@ -8,10 +8,10 @@ local Kn = 200						-- Порог цены, ниже которого умнож
 
 require 'proceed'
 os.execute("cls")  print(Sign())  os.execute("chcp 65001 >nul")
-local colors = require 'ansicolors'
+colors = require 'ansicolors'
 require 'luacurl'
 require 'harvester'
-local utf8 = require 'lua-utf8'
+utf8 = require 'lua-utf8'
 require 'sha1'
 
 -- Шаблон парсинга страниц 
