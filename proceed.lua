@@ -141,7 +141,7 @@ local function parseStr2 (a)						REM (">>> parseStr2", a)
 			if k=="nam" then break end
 			table.insert(T, k)
 			if v~="" then table.insert(T, v) end
-			print(k, v)
+			--print(k, v)
 		end
 		--print(findFuzzy(a, T))
 		md = lookintable2(Models[mk], findFuzzy(a, T) )
@@ -163,9 +163,9 @@ end;
 function Proceed(a) 							REM (">> Proceed", a)
 	a=clearJunk(a)	
 	local Mk, Md, Vs, Yr, Dt = parseStr (a)	
-	local Mk2, Md2  = parseStr2 (a)
+	--local Mk2, Md2  = parseStr2 (a)
 	
-	return Mk2, Md2, Vs, Yr, Dt
+	return Mk, Md, Vs, Yr, Dt
 end
 
 

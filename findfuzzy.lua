@@ -1,8 +1,12 @@
 local fuzzel = require("fuzzel")
+local utf8 = require 'lua-utf8'
 
-function findFuzzy2(str, pat)
+function recognizeFuzzyPatterns(str, Pat)
 	
-	local function retWordN(str, n)
+	local treshold = 30									--max percent of changes relative to str lenght ( len(str) is 100% )
+	local treshold2 = 60									--минимальный процент слов образца которые должны быть похожи в строке
+	
+	local function retWordN(str, n) --> слово номер n из строки str
 		local e,b = 0
 		local i=0
 		repeat	
@@ -16,7 +20,7 @@ function findFuzzy2(str, pat)
 		return(utf8.sub(str,b,e-1))
 	end
 
-	local function convertStrToTable(str)
+	local function convertStrToTable(str)	--> массив слов из строки str
 		local T={}
 		local wn=1
 		while true do
@@ -27,23 +31,72 @@ function findFuzzy2(str, pat)
 		end
 		return T
 	end
-	
-	local bestSum=10000
-	local sum=0
-	local Str=convertStrToTable(str)
-	local Pat=convertStrToTable(pat)
-	
-	for _,v in pairs(Str) do
-		for _,v2 in pairs(Pat) do
-			local sum=sum+fuzzel.FuzzyFindDistance(v1,v2)
-			if sum<bestSum then
-				bestSum=Sum
-			end
-		end
+
+	local function Percent(a, b)			--> сколько процентов a составляет от b
+		return(a*100/b)
 	end
 	
+	local function MinOrNil(a,b)
+		if not b then
+			return nil 
+		elseif not a then
+			return b
+		else
+			return (math.min(a,b))
+		end
+	end
 
-end
+	
+	local function  isValidE(e, slen, plen)		--> true если дистанция d между строками длниной spen и plen позволяет оценить их как похожие
+		tlen = math.max(slen,plen)		
+		if Percent(a, tlen) > Percent(treshold,tlen) then
+			return false
+		else
+			return true
+		end
+	end
+
+	
+	local function calcEmin(str, Pat) --> минимальная дистанция среди результатов сравнения str со всеми строками массива Pat
+												 --  или nil если похожих строк нет
+		local min_e, e
+		for _,v in pairs(Pat) do
+			_,e =  fuzzel.FuzzyFindDistance(str,v)
+
+			print (e, utf8.len(str), utf8.len(v))
+			print( "isValidE=", isValidE(e, utf8.len(str), utf8.len(v) ) )
+			
+			if isValidE(e, utf8.len(str), utf8.len(v) ) then 
+				min_e = MinOrNil(max_e, e)
+			end						
+		end
+		return min_e
+	end
+
+	
+	local function calcQ(str, pat)  --> количество похожих слов в строках str и pat
+		local Str=convertStrToTable(str)
+		local Pat=convertStrToTable(pat)
+		local q = 0
+		for _,v in pairs(Str) do						-- Для каждого слова анализируемой строки
+			if calcEmin(v, Pat) then
+				q = q+1
+			end
+		end
+		return q				
+	end 
+
+	
+          
+	--///////////////////////////////
+
+	local q_min, v_min
+	for _,v in pairs(Pat) do								-- Для каждого образца
+		q_min=MinOrNil(q_min, calcQ(str, v))
+	end
+	return q_min
+end   
+
 
 
 
@@ -53,7 +106,7 @@ function findFuzzy(str, Pat) --> наиболее _похожую_ строку 
 -- Шаблон ишется начиная с начала слова, не с середины.
 -- При оценке вхождения учитываются _все_ символы (перед вызовом надо следить за двойными пробелами и пр. мусором в str)
 	
-	trashold = 0    --max percent of changes relative to str lenght ( len(str) is 100% )
+	local trashold = 0    --max percent of changes relative to str lenght ( len(str) is 100% )
 
 	--str=utf8.lower(str)
 	local best_match=10000
