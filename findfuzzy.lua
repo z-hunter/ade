@@ -3,7 +3,7 @@ local utf8 = require 'lua-utf8'
 
 function recognizeFuzzyPatterns(str, Pat)
 	
-	local treshold = 30									--max percent of changes relative to str lenght ( len(str) is 100% )
+	local treshold = 50									--max percent of changes relative to str lenght ( len(str) is 100% )
 	local treshold2 = 60									--минимальный процент слов образца которые должны быть похожи в строке
 	
 	local function retWordN(str, n) --> слово номер n из строки str
@@ -14,7 +14,7 @@ function recognizeFuzzyPatterns(str, Pat)
 			b = utf8.find(str, '[%w%-%_]', b)									-- нацеливаемся на начало следующего слова
 			if not b then return nil end
 			e = utf8.find(str, '[^%w%-%_]', b+1)
-			e = e or utf8.len(str)
+			e = e or utf8.len(str)+1
 			i=i+1
 		until (i==n)
 		return(utf8.sub(str,b,e-1))
@@ -36,20 +36,25 @@ function recognizeFuzzyPatterns(str, Pat)
 		return(a*100/b)
 	end
 	
-	local function MinOrNil(a,b)
+	local function MinOrNil(a,b ,vold, vnew)
 		if not b then
-			return nil 
+			return nil, vold 
 		elseif not a then
-			return b
+			return b, vnew
 		else
-			return (math.min(a,b))
+			local r=math.min(a,b)
+			if r ~=a  then 
+				return r, vnew
+			else
+				return r, vold
+			end
 		end
 	end
 
 	
-	local function  isValidE(e, slen, plen)		--> true если дистанция d между строками длниной spen и plen позволяет оценить их как похожие
-		tlen = math.max(slen,plen)		
-		if Percent(a, tlen) > Percent(treshold,tlen) then
+   local function  isValidE(e, slen, plen)		--> true если дистанция d между строками длниной spen и plen позволяет оценить их как похожие
+		tlen = math.max(slen,plen)				
+		if Percent(e, tlen) > treshold then
 			return false
 		else
 			return true
@@ -59,12 +64,11 @@ function recognizeFuzzyPatterns(str, Pat)
 	
 	local function calcEmin(str, Pat) --> минимальная дистанция среди результатов сравнения str со всеми строками массива Pat
 												 --  или nil если похожих строк нет
-		local min_e, e
+		local min_e, e = nil
 		for _,v in pairs(Pat) do
 			_,e =  fuzzel.FuzzyFindDistance(str,v)
 
-			print (e, utf8.len(str), utf8.len(v))
-			print( "isValidE=", isValidE(e, utf8.len(str), utf8.len(v) ) )
+			print (e, str, v, isValidE(e, utf8.len(str), utf8.len(v) ) )	-- -
 			
 			if isValidE(e, utf8.len(str), utf8.len(v) ) then 
 				min_e = MinOrNil(max_e, e)
@@ -74,12 +78,12 @@ function recognizeFuzzyPatterns(str, Pat)
 	end
 
 	
-	local function calcQ(str, pat)  --> количество похожих слов в строках str и pat
+	local function calcQ(str, pat)  --> количество НЕпохожих слов в строках str и pat
 		local Str=convertStrToTable(str)
 		local Pat=convertStrToTable(pat)
 		local q = 0
 		for _,v in pairs(Str) do						-- Для каждого слова анализируемой строки
-			if calcEmin(v, Pat) then
+			if not calcEmin(v, Pat) then
 				q = q+1
 			end
 		end
@@ -92,9 +96,12 @@ function recognizeFuzzyPatterns(str, Pat)
 
 	local q_min, v_min
 	for _,v in pairs(Pat) do								-- Для каждого образца
-		q_min=MinOrNil(q_min, calcQ(str, v))
+		print ("-----------проверяем шаблон-----------", v)
+		q_min, v_min=MinOrNil(q_min, calcQ(str, v), v_min, v)
+		print ("===========закончили проверять шаблон", v)
+		print ("q_min, v_min", q_min, v_min)		
 	end
-	return q_min
+	return q_min,v_min
 end   
 
 
