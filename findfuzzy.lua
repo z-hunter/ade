@@ -80,27 +80,32 @@ function recognizeFuzzyPatterns(str, Pat)
 	end
 
 	
-	local function calcQ(str, pat)  --> количество похожих слов в строках str и pat
+	local function calcQ(str, pat)  --> Количество похожих слов в строках str и pat , Количество НЕпохожих слов
 		local Str=convertStrToTable(str)
 		local Pat=convertStrToTable(pat)
 		local q = 0
 		for _,v in pairs(Str) do						-- Для каждого слова анализируемой строки
-			if calcEmin(v, Pat) then
-				q = q+1
+			if calcEmin(v, Pat) then					-- оцениваем
+				q = q+1										-- слово похоже
 			end
 		end
-		return q				
+		return q, #Pat
 	end
 	
           
 	--///////////////////////////////
 
 	
-	local max_q, q, max_v = 0
+	local max_q, q = 0
+	local min_q2, q2 = 10000
+	local max_v
 	for _,v in pairs(P) do
-	  q = calcQ(s,v)	  
+	  q, q2 = calcQ(s,v)	  
 	  print (q, v)
-	  if q > max_q then
+	if q == max_q and q2-q < min_q2 then	
+		min_q2 = q2-q
+		max_v=v
+	elseif q > max_q then
 		 max_q=q
 		 max_v=v
 	  end
