@@ -63,17 +63,22 @@ function recognizeFuzzyPatterns(str, Pat)
 
 	
 	local function calcEmin(str, Pat) --> минимальная дистанция среди результатов сравнения str со всеми строками массива Pat
-												 --  или nil если, согласно оценке, похожих строк нет
+												 -->  или nil если, согласно оценке, похожих строк нет
+												 -->  или -1 если str идентично одной из строк Pat
 		local min_e, e
-		for _,v in pairs(Pat) do
-			_,e =  fuzzel.FuzzyFindDistance( utf8.lower(str), utf8.lower(v) )
+		for _,v in pairs(Pat) do			
+			local s, p = utf8.lower(str),  utf8.lower(v)
+			if s ==  p then
+				return -1	
+			else	
+				_,e =  fuzzel.FuzzyFindDistance( s, p )
+				if isValidE(e, utf8.len(str), utf8.len(v) ) then 
+					min_e = MinOrNil(min_e, e)
+				end	
+			end
 
 			--print (e, str, v, isValidE(e, utf8.len(str), utf8.len(v) ) )	-- -
-			
-			if isValidE(e, utf8.len(str), utf8.len(v) ) then 
-				min_e = MinOrNil(min_e, e)
-			end	
-			
+
 		end
 		--print ("min_e", min_e)
 		return min_e
@@ -85,8 +90,11 @@ function recognizeFuzzyPatterns(str, Pat)
 		local Pat=convertStrToTable(pat)
 		local q = 0
 		for _,v in pairs(Str) do						-- Для каждого слова анализируемой строки
-			if calcEmin(v, Pat) then					-- оцениваем
-				q = q+1										-- слово похоже
+			local c = calcEmin(v, Pat)
+			if c and c >=0 then					
+				q = q+1										-- слово похоже на одно из слов строки образца
+			elseif c then 
+				q = q+1.1										-- слово идентично одному из слов строки образца
 			end
 		end
 		return q, #Pat
@@ -99,9 +107,9 @@ function recognizeFuzzyPatterns(str, Pat)
 	local max_q, q = 0
 	local min_q2, q2 = 10000
 	local max_v
-	for _,v in pairs(P) do
-	  q, q2 = calcQ(s,v)	  
-	  print (q, v)
+	for _,v in pairs(Pat) do
+	  q, q2 = calcQ(str,v)	  
+	  print (q, q2-q, v)
 	if q == max_q and q2-q < min_q2 then	
 		min_q2 = q2-q
 		max_v=v
