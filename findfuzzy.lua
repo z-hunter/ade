@@ -3,7 +3,7 @@ local utf8 = require 'lua-utf8'
 
 function recognizeFuzzyPatterns(str, Pat)
 	
-	local treshold = 50									--max percent of changes relative to str lenght ( len(str) is 100% )
+	local treshold = 30									--max percent of changes relative to str lenght ( len(str) is 100% )
 	local treshold2 = 60									--минимальный процент слов образца которые должны быть похожи в строке
 	
 	local function retWordN(str, n) --> слово номер n из строки str
@@ -36,17 +36,17 @@ function recognizeFuzzyPatterns(str, Pat)
 		return(a*100/b)
 	end
 	
-	local function MinOrNil(a,b ,vold, vnew)
+	local function MinOrNil(a,b)
 		if not b then
-			return nil, vold 
+			return nil 
 		elseif not a then
-			return b, vnew
+			return b
 		else
 			local r=math.min(a,b)
 			if r ~=a  then 
-				return r, vnew
+				return r
 			else
-				return r, vold
+				return r
 			end
 		end
 	end
@@ -63,46 +63,51 @@ function recognizeFuzzyPatterns(str, Pat)
 
 	
 	local function calcEmin(str, Pat) --> минимальная дистанция среди результатов сравнения str со всеми строками массива Pat
-												 --  или nil если похожих строк нет
-		local min_e, e = nil
+												 --  или nil если, согласно оценке, похожих строк нет
+		local min_e, e
 		for _,v in pairs(Pat) do
-			_,e =  fuzzel.FuzzyFindDistance(str,v)
+			_,e =  fuzzel.FuzzyFindDistance( utf8.lower(str), utf8.lower(v) )
 
-			print (e, str, v, isValidE(e, utf8.len(str), utf8.len(v) ) )	-- -
+			--print (e, str, v, isValidE(e, utf8.len(str), utf8.len(v) ) )	-- -
 			
 			if isValidE(e, utf8.len(str), utf8.len(v) ) then 
-				min_e = MinOrNil(max_e, e)
-			end						
+				min_e = MinOrNil(min_e, e)
+			end	
+			
 		end
+		--print ("min_e", min_e)
 		return min_e
 	end
 
 	
-	local function calcQ(str, pat)  --> количество НЕпохожих слов в строках str и pat
+	local function calcQ(str, pat)  --> количество похожих слов в строках str и pat
 		local Str=convertStrToTable(str)
 		local Pat=convertStrToTable(pat)
 		local q = 0
 		for _,v in pairs(Str) do						-- Для каждого слова анализируемой строки
-			if not calcEmin(v, Pat) then
+			if calcEmin(v, Pat) then
 				q = q+1
 			end
 		end
 		return q				
-	end 
-
+	end
 	
           
 	--///////////////////////////////
 
-	local q_min, v_min
-	for _,v in pairs(Pat) do								-- Для каждого образца
-		print ("-----------проверяем шаблон-----------", v)
-		q_min, v_min=MinOrNil(q_min, calcQ(str, v), v_min, v)
-		print ("===========закончили проверять шаблон", v)
-		print ("q_min, v_min", q_min, v_min)		
+	
+	local max_q, q, max_v = 0
+	for _,v in pairs(P) do
+	  q = calcQ(s,v)	  
+	  print (q, v)
+	  if q > max_q then
+		 max_q=q
+		 max_v=v
+	  end
 	end
-	return q_min,v_min
-end   
+	
+	return max_v
+end
 
 
 
