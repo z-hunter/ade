@@ -4,7 +4,7 @@ local urlpost = "/rossiya?p="
 local urladepics = "http://d0009440.atservers.net/adepics/"										-- http путь до картинок, должен оканчиватся "/adepics/"
 local Kx1 = 1						-- Ценовой умножитель 1
 local Kx2 = 1.1						-- Ценовой умножитель 2
-local Kn = 200						-- Порог цены, ниже которого умножается на Kx1 а с него и выше на Kx2
+local Kn = 200						-- Порог цены (в бел. руб.), ниже которого умножается на Kx1 а с него и выше на Kx2
 
 require 'proceed'
 os.execute("cls")  print(Sign())  os.execute("chcp 65001 >nul")
@@ -151,23 +151,24 @@ outLog.init = function()		    -- подготовить выходной кат�
 end
 outLog.doOutput = function (Parts)	    -- Добавляет в data.csv записи Parts 
     local f = io.open("out/data.csv", 'a')   
-    local excel=""													-- буфер 
+    local excel="МАРКА;МОДЕЛЬ;ВЕРСИЯ;ГОД;ТОПЛИВО;ОБЪЕМ;ТИП ДВИГАТЕЛЯ;КОРОБКА;ТИП КУЗОВА;ЗАПЧАСТЬ;ОПИСАНИЕ;ОРИГИНАЛЬНЫЙ НОМЕР;СКЛАДСКАЯ ИНФОРМАЦИЯ;ЦЕНА;ВАЛЮТА;СКИДКА;ГОРОД;ТЕЛЕФОНЫ;EMAIL;ИМЯ;ФОТО;ID_ABW;ID_EXT;\n"													-- буфер 
 	local count = 0
 	for k, v in pairs(Parts) do                							REM ("Пишем в csv деталь", v.Mk..v.Md..v.Dt)		
-		local tmp = '"Mk";"Md";"Vs";"Yr";;;;;;"Dt";"De";;"Url";"Pr";"BYR";;;;;;"Pic";;"Id";'
+		local tmp = '"Mk666";"Md666";"Vs666";"Yr666";;;;;;"Dt666";"De666";;"Url666";"Pr666";"BYR";;;;;;"Pic666";;"Id666";'
 		--*1МАРКА	*2МОДЕЛЬ	3ВЕРСИЯ	*4ГОД	5ТОПЛИВО	6ОБЪЕМ	7ТИП_ДВИГ	8КОРОБКА	9ТИП_КУЗОВА	*10ЗАПЧАСТЬ	11ОПИСАНИЕ
 		--12ОРИГ_НОМЕР	13СКЛАДСК_ИНФ 14ЦЕНА	15ВАЛЮТА	16СКИДКА	17ГОРОД	18ТЕЛЕФОНЫ	19EMAIL	20ИМЯ	21ФОТО	22ID_ABW	*23ID_EXT
 		
 		for k2, v2 in pairs(v) do										-- подменяем в шаблоне названия полей записи Parts их содержимым
-			tmp = utf8.gsub(tmp, k2, v2)
+			tmp = utf8.gsub(tmp, k2..'666', v2)							-- 666 чтобы не перепутать текст с шаблоном и не запороть его
 		end
-		tmp = utf8.gsub(tmp, "Id", k)									-- хэш в качестве Id
+			
+		tmp = utf8.gsub(tmp, "Id666", k)									-- хэш в качестве Id
 		local pic = ""
 		for k2, v2 in pairs (v.Pics) do
 			pic = pic..urladepics..v2
 			if v.Pics[k2+1] then pic = pic..","; end
 		end
-		tmp = utf8.gsub(tmp, "Pic", pic)	
+		tmp = utf8.gsub(tmp, "Pic666", pic)	
 		excel=(excel..tmp.."\n")										-- добавляем получившуюся строку в буфер
 		count = count+1
 	end
@@ -214,35 +215,39 @@ function getParts(Parts, page)				-- page =текст страницы --> table
 
 	local loadedQ, serrors = 0, 0						-- счётчики загруженных из сети позиций и пропущенных из-за ошибки
 	for _, v in pairs(data.e) do						-- проход по улову, состоящему из полей: .link, .title, .price 
-			
+		local skip=false
+		
 		v.title = utf8.gsub(v.title,"\n","")			-- чистим текст от переводов строк
 		v.title = utf8.gsub(v.title,"  "," ")			-- и от двойных пробелов
 		
 		if not v.price then 						-- если не выловлено строки с ценой, то не допускаем чтобы gsub выдал на ней ошибку
-			print ("No price found, skipping item ", v.title);
+			print ("No price found ", v.title);
 			serrors = serrors+1
-			break
+			skip=true
 		else										-- строка есть
 			v.price = utf8.gsub(v.price,"%s","")	    -- пробелы препятствуют tonumber 
 			v.price = tonumber(v.price)
 			if not v.price then 						-- строка не переводится в число
-				print (v.price, " : Not numeric in price str, skipping item ", v.title)
+				print (v.price, " : Not numeric in price str ", v.title)
 				serrors=serrors+1
-				break
+				skip=true
 			end	
 		end	
 				
 		local Mk, Md, Vs, Yr, Dt = Proceed(v.title)	   				-- парсим текст, получаем: Марку,Модель,Версию,Год,Название (остальное извлекли выше)
 		if not Dt then 
-			print ("Item Dt is not found, skipping item ", v.title);
+			print ("Item Dt is not found", v.title);
 			serrors = serrors+1
-			break
+			skip=true
 		end		
 										
 	    local suburl=urlroot..v.link		-- ссылка на подстраницу с фото     
 		local subpage						-- для текста подстраницы 
 		local i = sha1(suburl)							REM( "Хэш", i)
-		if not Parts[i] then												-- определяем, есть ли такая запись в базее
+		
+		if skip then 
+			print ("Skipping item."))
+		elseif not Parts[i] then												-- определяем, есть ли такая запись в базее
 			Parts[i]={}									REM( "Cоздаём новую запись в Parts", Mk..Md..Dt)
 			Parts[i].status="new"
 			subpage=get(suburl, CT)		--									: subpage
@@ -250,62 +255,72 @@ function getParts(Parts, page)				-- page =текст страницы --> table
 			if not subpage then
 				print ("Cannot get subpage of item, skipping item ", v.title)	
 				serrors=serrors+1
-				break
+				skip=true
 			end
 		else 											REM( "Подтверждена уже имеющаяся в Parts запись", Mk..Md..Dt)
 			Parts[i].status="ok"
 		end
 		
+		if not skip then
 		--Parts[i].num = num2
-		--num2=num2+1
-		Parts[i].De = v.title
-	    Parts[i].Mk = Mk
-	    Parts[i].Md = Md
-	    Parts[i].Vs = Vs or ""
-	    Parts[i].Yr = Yr or ""
-		v.price = tostring(v.price * currate) --	переводим в рубли	    		
-		v.price = utf8.gsub(v.price,"%.",",")	    -- десятичную точку в запятую для русского Экселя
-	    Parts[i].Pr = v.price
-	    Parts[i].Dt = Dt
-	    print (v.title,"->"..Parts[i].Mk.."|"..Parts[i].Md.."|"..Parts[i].Vs.."|"..Parts[i].Yr.."|"..Parts[i].Pr.."|"..Parts[i].Dt)	    
-	    if CC == 0 then
-		CC = cooldownCount; CT = cooldownTime
-	    else
-		CC = CC-1; CT = nil
-	    end
-    
-	    if Parts[i].status == "new" then 											REM("Это новая запись")
-			Parts[i].Url = suburl
-			local data2 = harvester2.harvest(subpage)
-			data2.e[#data2.e] = nil			-- последняя ссылка на фото та-же что первая		
-
-			if not data2.e[1] then 
-				print ("Picture link is not found, skipping item.")
-				serrors=serrors+1
-				Parts[i]=nil; break
+			--num2=num2+1
+			Parts[i].De = v.title
+			Parts[i].Mk = Mk
+			Parts[i].Md = Md
+			Parts[i].Vs = Vs or ""
+			Parts[i].Yr = Yr or ""
+			
+			v.price = v.price * currate --	переводим в рубли
+			if v.price < Kn	then
+				v.price = v.price * Kx1
+			else
+				v.price = v.price * Kx2
+			end
+			v.price=tostring(v.price)
+			v.price = utf8.gsub(v.price,"%.",",")	    -- десятичную точку в запятую для русского Экселя
+			
+			Parts[i].Pr = v.price
+			Parts[i].Dt = Dt
+			print (v.title,"->"..Parts[i].Mk.."|"..Parts[i].Md.."|"..Parts[i].Vs.."|"..Parts[i].Yr.."|"..Parts[i].Pr.."|"..Parts[i].Dt)	    
+			if CC == 0 then
+			CC = cooldownCount; CT = cooldownTime
+			else
+			CC = CC-1; CT = nil
 			end
 		
-			Parts[i].Pics ={}
-			for j, w in pairs(data2.e) do
-				local pic = get(w.piclink)    	
-				if pic then
-					local filename = i..'_'..j..'.jpg'
-					do
-						local f = io.open("out/"..filename, 'w+b')
-						if f then 
-							f:write(pic)
-							--f:flush ()
-							f:close()	
-							REM (filename)
-						else
-							print ("Cannot create a file "..filename)
-						end
-					end
-					table.insert (Parts[i].Pics, filename)
-				end
-				if not Parts[i].Pics[1] then
-					print ("No pictures downloaded, skippig item")
+			if Parts[i].status == "new" then 											REM("Это новая запись")
+				Parts[i].Url = suburl
+				local data2 = harvester2.harvest(subpage)
+				data2.e[#data2.e] = nil			-- последняя ссылка на фото та-же что первая		
+
+				if not data2.e[1] then 
+					print ("Picture link is not found, skipping item.")
+					serrors=serrors+1
 					Parts[i]=nil; break
+				end
+			
+				Parts[i].Pics ={}
+				for j, w in pairs(data2.e) do
+					local pic = get(w.piclink)    	
+					if pic then
+						local filename = i..'_'..j..'.jpg'
+						do
+							local f = io.open("out/"..filename, 'w+b')
+							if f then 
+								f:write(pic)
+								--f:flush ()
+								f:close()	
+								REM (filename)
+							else
+								print ("Cannot create a file "..filename)
+							end
+						end
+						table.insert (Parts[i].Pics, filename)
+					end
+					if not Parts[i].Pics[1] then
+						print ("No pictures downloaded, skippig item")
+						Parts[i]=nil; break
+					end
 				end
 			end
 		end
@@ -326,7 +341,8 @@ end;
 -- --- -- -- -- -- -- -- --- -- -- -- -- -- -- --- -- -- -- -- -- 
 
 -->>>> Start:
-print (string.rep("-", string.len(Sign())))
+print()
+--print (string.rep("▬", utf8.len(Sign())))
 local Hour1 = os.date("%H")
 local Min1 = os.date("%M")
 currate = getCurrate()

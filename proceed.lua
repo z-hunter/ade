@@ -1,6 +1,107 @@
 dofile "findfuzzy.lua"
+local colors = require 'ansicolors'
 dofile "models.lua"
+dofile "parts.lua"
+local utf8 = require 'lua-utf8'
 
+
+
+function dumpArray(T)
+   for k, v in pairs(T) do
+	  print (k,v)
+   end
+end
+
+
+function defakeLatinLetters(s)
+   local T={ -- rus : lat
+	  ["К"]="K",
+	  ["Е"]="E",
+	  ["Н"]="H",
+	  ["Х"]="X",
+	  ["В"]="B",
+	  ["А"]="A",
+	  ["Р"]="P",
+	  ["О"]="O",
+	  ["С"]="C",
+	  ["М"]="M",
+	  ["Т"]="T",
+   }
+   for k,v in pairs(T) do
+	  utf8.gsub(s,v,k)
+   end
+   return s
+end
+
+
+function detectMark(s)
+   local P={}
+   for f,v in pairs(Models) do
+	  table.insert(P, f)
+      if  v.nam ~="" then table.insert(P, v.nam) end    
+   end
+
+   local r = recognizeFuzzyPatterns(s, P)
+   
+   if not Models[r] then
+	  for f,v in pairs(Models) do
+		 if v.nam == r then
+			return f
+		 end
+	  end
+   else
+	  return r
+   end
+end
+
+function detectModel(s, mark)
+   local P={}
+   for f,v in pairs(Models[mark]) do
+	  if f ~="nam" then		 
+		 table.insert(P, f)
+		 if  v ~="" then
+			table.insert(P, v)
+		 else
+			table.insert(P, defakeLatinLetters(v))
+		 end    
+	  end
+   end
+   --dumpArray(P)
+   --print()
+  local r = recognizeFuzzyPatterns(s, P)
+   -- print (r)
+  if not Models[mark][r] then
+	  for f,v in pairs(Models[mark]) do
+		 if v == r then
+			return f
+		 end
+	  end
+  else
+	  return r
+  end
+end
+
+function detectPart(s)
+   local P={}
+   for f,v in pairs(Parts) do
+	  table.insert(P, f)
+      if  v ~="" then table.insert(P, v) end    
+   end
+
+   local r = recognizeFuzzyPatterns(s, P)
+   
+   if not r then
+	  return ("Прочая запчасть")
+   elseif not Parts[r] then
+	  for f,v in pairs(Parts) do
+		 if v == r then
+			return f
+		 end
+	  end
+   else
+	  return r
+   end
+end
 
 local function clearJunk(a)
 	a = utf8.gsub(a,"%("," ")			-- чистим от скобок
@@ -16,6 +117,20 @@ local function clearJunk(a)
     a = utf8.gsub(a,"Мерседес%s+Бенц","Mercedes")
     a = utf8.gsub(a,"Ссанг%s+Йонг","SsangYong")
 	return a
+end
+
+local function trimSpaces(s)     --> строку s без пробелов в начале и конце
+   return (utf8.match(s, "^%s*(.-)%s*$") )
+end
+
+local function singleYear(d)		 --> преобразованная в 4 цифры строку d (год или интервал лет через тире)
+     d=trimSpaces(d)
+     local pos = d:find("-")
+     if pos then
+	 d = d:sub(1,pos-1) 
+     end
+     if d:len() == 2 then d = "20"..d end
+     return d
 end
 
 local function parseStr (a)							REM (">>> parseStr", a)						         
@@ -100,77 +215,44 @@ local function parseStr (a)							REM (">>> parseStr", a)
 end
 
 
-local function parseStr2 (a)						REM (">>> parseStr2", a)		
-	
-	local function lookintable(T, str)
-		local ret = nil
-		for k,v in pairs(T) do
-			if k==str or v.nam==str then
-				ret=k
-				break
-			end
-		end
-		return ret
-	end
-	
-	local function lookintable2(T, str)
-		local ret = nil
-		for k,v in pairs(T) do
-			if k==str or v==str then
-				ret=k
-				break
-			end
-		end
-		return ret
-	end
-	
-	
-	local T= {}
-	local md
-	for k,v in pairs(Models) do
-		table.insert(T, k)
-		table.insert(T, v.nam)
-		--print(k, v.nam)
-	end
-	--print(findFuzzy(a, T))
-	local mk=lookintable(Models, findFuzzy(a, T) )
-	print("mk=",mk)	
-	if mk then	
-		T= {}
-		for k,v in pairs(Models[mk]) do
-			if k=="nam" then break end
-			table.insert(T, k)
-			if v~="" then table.insert(T, v) end
-			--print(k, v)
-		end
-		--print(findFuzzy(a, T))
-		md = lookintable2(Models[mk], findFuzzy(a, T) )
-		print("md=",md)	
-		if md then
-			return mk, md
-		else
-			print( colors("%{redbg}Model is not recognized:", a) )
-			return nil
-		end		
-	else 
-		print( colors("%{redbg}Mark is not recognized:", a) )
-		return nil
-	end
-
-end;
-
 
 function Proceed(a) 							REM (">> Proceed", a)
 	a=clearJunk(a)	
 	local Mk, Md, Vs, Yr, Dt = parseStr (a)	
-	--local Mk2, Md2  = parseStr2 (a)
+	local Mk2=detectMark(a)
+	if not Mk2 then
+	    print(a, colors("%{redbg}Mark is not recognized"), Mk)
+	    return nil
+	end
+
+	local Md2=detectModel(a,Mk2)
 	
-	return Mk, Md, Vs, Yr, Dt
+	if not Md2 then
+	    print(a, colors("%{redbg}Model is not recognized"))
+	    Md2 = Md
+	end
+	
+	local Dt2=detectPart(a)
+	
+	if not Yr then
+	    Yr=2015
+	else
+	    Yr=singleYear(Yr)
+	end
+
+
+	return Mk2, Md2, Vs, Yr, Dt2
 end
 
 
+
+
+
+
+
+
 function Sign()
-	return'Ϟ   A-D-Extractor v.0.5 (c) Michael.Voitovich@gmail.com, 2017  '
+	return(colors('░▒▓█%{reverse} A-D-Extractor %{reset}  v.0.5 © Michael.Voitovich@gmail.com, 2017'))
 end
 
 

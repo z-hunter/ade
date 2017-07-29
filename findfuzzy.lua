@@ -3,7 +3,7 @@ local utf8 = require 'lua-utf8'
 
 function recognizeFuzzyPatterns(str, Pat)
 	
-	local treshold = 30									--max percent of changes relative to str lenght ( len(str) is 100% )
+	local treshold = 36									--max percent of changes relative to str lenght ( len(str) is 100% )
 	local treshold2 = 60									--минимальный процент слов образца которые должны быть похожи в строке
 	
 	local function retWordN(str, n) --> слово номер n из строки str
@@ -108,23 +108,30 @@ function recognizeFuzzyPatterns(str, Pat)
 	local min_q2, q2 = 10000
 	local max_v
 	for _,v in pairs(Pat) do
-	  q, q2 = calcQ(str,v)	  
-	  print (q, q2-q, v)
-	if q == max_q and q2-q < min_q2 then	
-		min_q2 = q2-q
-		max_v=v
-	elseif q > max_q then
-		 max_q=q
-		 max_v=v
-	  end
+	     q, q2 = calcQ(str,v)	  
+	     --print (q, q2-q, v)	    	
+	    if q == max_q and q2-q < min_q2 then	
+	       --print ("bingo1", min_q2)	
+	       min_q2 = q2-q
+	       max_v=v		
+	    elseif q > max_q and q2-q < q then
+	       if q2-q < min_q2 then
+		  min_q2 = q2-q
+	       end
+	       max_q=q
+	       max_v=v
+	       --print ("bingo2")
+	    end
 	end
 	
-	return max_v
+      if max_q >0 then return max_v
+      else return nil
+      end
 end
 
 
 
-
+--[[
 function findFuzzy(str, Pat) --> наиболее _похожую_ строку из Pat, которая найдена в str, или nil, если похожей не найдено
 -- Pat должен быть массивом строк. Регистр не различается.
 -- Учитывается разбиение на слова. Слова в str состоят из букв, цифр, тире и подчёркиваний, остальные символы это разделители слов.
@@ -173,7 +180,7 @@ function findFuzzy(str, Pat) --> наиболее _похожую_ строку 
 	return ret
 	--return utf8.sub(str, start,ending)
 end
-
+]]
 --local a = findFuzzy("Ситроен С4 2 (11-16) фонарь левый", {"задний фонарь", "бездарная тварь", "мясо", "00"})
 --print('----\n',a)
 
