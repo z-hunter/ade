@@ -1,9 +1,11 @@
 local fuzzel = require("fuzzel")
 local utf8 = require 'lua-utf8'
+local memoize = require 'memoize'
+fuzzel.FuzzyFindDistance=memoize(fuzzel.FuzzyFindDistance)
 
 function recognizeFuzzyPatterns(str, Pat)
 	
-	local treshold = 36									--max percent of changes relative to str lenght ( len(str) is 100% )
+	local treshold = 40									--max percent of changes relative to str lenght ( len(str) is 100% )
 	local treshold2 = 60									--минимальный процент слов образца которые должны быть похожи в строке
 	
 	local function retWordN(str, n) --> слово номер n из строки str
@@ -85,17 +87,21 @@ function recognizeFuzzyPatterns(str, Pat)
 	end
 
 	
-	local function calcQ(str, pat)  --> Количество похожих слов в строках str и pat , Количество НЕпохожих слов
+	local function calcQ(str, pat)  --> Оценка кол-ва похожих слов в строках str и pat , Количество НЕпохожих слов
 		local Str=convertStrToTable(str)
 		local Pat=convertStrToTable(pat)
 		local q = 0
 		for _,v in pairs(Str) do						-- Для каждого слова анализируемой строки
-			local c = calcEmin(v, Pat)
-			if c and c >=0 then					
-				q = q+1										-- слово похоже на одно из слов строки образца
-			elseif c then 
-				q = q+1.1										-- слово идентично одному из слов строки образца
+		     local c = calcEmin(v, Pat)
+		     if c then
+			if c==1 then			
+			        q = q+1.01					       -- слово очень похоже на одно из слов строки образца
+			elseif c >=0 then					
+				q = q+1						       -- слово похоже на одно из слов строки образца
+			else
+				q = q+1.1					       -- слово идентично одному из слов строки образца
 			end
+		     end
 		end
 		return q, #Pat
 	end

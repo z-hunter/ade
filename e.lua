@@ -1,13 +1,14 @@
 local url = "https://www.avito.ru/avtofortune"
 local urlroot = "https://www.avito.ru"
 local urlpost = "/rossiya?p="
-local urladepics = "http://d0009440.atservers.net/adepics/"										-- http путь до картинок, должен оканчиватся "/adepics/"
-local Kx1 = 1						-- Ценовой умножитель 1
-local Kx2 = 1.1						-- Ценовой умножитель 2
+local urladepics = "http://d0009440.atservers.net/adepics/"										-- http путь до картинок на хостинге, должен оканчиватся "/adepics/"
+local Kx1 = 1.1						-- Ценовой умножитель 1
+local Kx2 = 1.3						-- Ценовой умножитель 2
 local Kn = 200						-- Порог цены (в бел. руб.), ниже которого умножается на Kx1 а с него и выше на Kx2
 
 require 'proceed'
-os.execute("cls")  print(Sign())  os.execute("chcp 65001 >nul")
+os.execute("chcp 65001 >nul")
+os.execute("cls")  print(Sign())
 colors = require 'ansicolors'
 require 'luacurl'
 require 'harvester'
@@ -98,8 +99,6 @@ outLog.doInput = function ()						--> Parts table or nil if no file
 	local num = 1	
 	for line in f:lines() do
 	  if line ~= "МАРКА;МОДЕЛЬ;ВЕРСИЯ;ГОД;ТОПЛИВО;ОБЪЕМ;ТИП ДВИГАТЕЛЯ;КОРОБКА;ТИП КУЗОВА;ЗАПЧАСТЬ;ОПИСАНИЕ;ОРИГИНАЛЬНЫЙ НОМЕР;СКЛАДСКАЯ ИНФОРМАЦИЯ;ЦЕНА;ВАЛЮТА;СКИДКА;ГОРОД;ТЕЛЕФОНЫ;EMAIL;ИМЯ;ФОТО;ID_ABW;ID_EXT;"	 then
-	--*1МАРКА	*2МОДЕЛЬ	3ВЕРСИЯ	*4ГОД	5ТОПЛИВО	6ОБЪЕМ	7ТИП_ДВИГ	8КОРОБКА	9ТИП_КУЗОВА	*10ЗАПЧАСТЬ	11ОПИСАНИЕ
-		--12ОРИГ_НОМЕР	13СКЛАДСК_ИНФ 14ЦЕНА	15ВАЛЮТА	16СКИДКА	17ГОРОД	18ТЕЛЕФОНЫ	19EMAIL	20ИМЯ	21ФОТО	22ID_ABW	*23ID_EXT		
 		local t=parseCSVLine(line) 
 		tParts[t[23]] = {}										REM(t[23])
 		local T = tParts[t[23]]		
@@ -129,7 +128,6 @@ outLog.doInput = function ()						--> Parts table or nil if no file
 				v2 = utf8.sub(v2, p+1)
 				T.Pics[k2] =  v2; REM(k2, T.Pics[k2])
 		end
-
 		num = num+1
 	  end
 	end
@@ -147,6 +145,13 @@ outLog.init = function()		    -- подготовить выходной кат�
     else
         f:close()
 	os.remove('out/TEST.txt')
+   end
+   local f = io.open('out/raw/TEST.txt', 'w')
+   if not f then
+	os.execute('mkdir out\\raw')
+    else
+        f:close()
+	os.remove('out/raw/TEST.txt')
    end
    local f, ermsg = io.open("out/data.csv", 'w')   -- Открываем на перезапись
    print ("Output file: out/data.csv", ermsg or '')
@@ -308,7 +313,7 @@ function getParts(Parts, page)				-- page =текст страницы --> table
 					if pic then
 						local filename = i..'_'..j..'.jpg'
 						do
-							local f = io.open("out/"..filename, 'w+b')
+							local f = io.open("out/raw/"..filename, 'w+b')
 							if f then 
 								f:write(pic)
 								--f:flush ()
@@ -369,8 +374,8 @@ local Parts = outLog.doInput() or {}
 local loadedQ
 local serrors=0
 Parts, loadedQ, serrors = getParts(Parts, page)			-- обрабатываем первую отдельно (она уже загружена в page)
-outLog.init()
-outLog.doOutput(Parts)
+--outLog.init()
+--outLog.doOutput(Parts)
 
 for i=2, pq do					-- проходим по остальным страницам 
     local sertmp=0
@@ -386,14 +391,17 @@ for i=2, pq do					-- проходим по остальным страница�
 		serrors=serrors+sertmp
 		print ("errors: "..sertmp)
 	end
-	outLog.init()
-	outLog.doOutput(Parts)
+	--outLog.init()
+	--outLog.doOutput(Parts)
 end
 
-
-print ("Extraction finished. Finalysing output...")
-outLog.init()
+print ("Extraction finished.")
+print("Processing pictures...")
+os.execute("bin\\nconvert.exe -quiet -wmflag bottom-left -wmfile wm.png -overwrite -o out\\%  out\\raw\\*.jpg")
+os.execute("del /f /q out\\raw\\*.* " )
+print "Done."
 local sok, snew, sdel = procParts(Parts)
+outLog.init()
 outLog.doOutput(Parts)
 local Hour2 = os.date("%H")
 local Min2 = os.date("%M")

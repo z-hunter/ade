@@ -10,7 +10,7 @@ function REM(n, m)	    -- debug print (and remark)
 	end
  end
 
-s= " Ссанг Йонг Рекстон 2 (09-12) мкпп 5 ступка"
+s= "Ситроен С4 1  05-11  решетка радиатора"
 
 
 --[[for f,v in pairs(Parts) do
@@ -21,8 +21,4 @@ end]]
 
 
 
-print(s)
-print (Proceed(s))
-
-
-  
+print(Proceed("Лексус LS-460 абсорбер переднего бампера"))

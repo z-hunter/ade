@@ -3,17 +3,15 @@ local colors = require 'ansicolors'
 dofile "models.lua"
 dofile "parts.lua"
 local utf8 = require 'lua-utf8'
-
-
+local memoize = require 'memoize'
 
 function dumpArray(T)
    for k, v in pairs(T) do
 	  print (k,v)
    end
 end
-
-
 function defakeLatinLetters(s)
+   s=utf8.upper(s)
    local T={ -- rus : lat
 	  ["К"]="K",
 	  ["Е"]="E",
@@ -28,20 +26,31 @@ function defakeLatinLetters(s)
 	  ["Т"]="T",
    }
    for k,v in pairs(T) do
-	  utf8.gsub(s,v,k)
+	  s=utf8.gsub(s,v,k)
    end
    return s
 end
 
+for k,v in pairs (Models) do
+   for k2, v2 in pairs(v) do
+      if v2=="" then
+	 Models[k][k2]= defakeLatinLetters(k2)
+      end
+   end
+end
 
-function detectMark(s)
+--dumpArray(Models["Citroen"])
+
+
+
+function detectMark(s,a )
    local P={}
    for f,v in pairs(Models) do
 	  table.insert(P, f)
       if  v.nam ~="" then table.insert(P, v.nam) end    
    end
-
-   local r = recognizeFuzzyPatterns(s, P)
+ 
+   local r = recognizeFuzzyPatterns(s, P) or recognizeFuzzyPatterns(a, P)
    
    if not Models[r] then
 	  for f,v in pairs(Models) do
@@ -54,44 +63,44 @@ function detectMark(s)
    end
 end
 
-function detectModel(s, mark)
+function detectModel(s, a, mark)
    local P={}
    for f,v in pairs(Models[mark]) do
 	  if f ~="nam" then		 
 		 table.insert(P, f)
 		 if  v ~="" then
 			table.insert(P, v)
-		 else
-			table.insert(P, defakeLatinLetters(v))
 		 end    
 	  end
    end
    --dumpArray(P)
    --print()
-  local r = recognizeFuzzyPatterns(s, P)
-   -- print (r)
+  local r = recognizeFuzzyPatterns(s, P) or recognizeFuzzyPatterns(a, P)
+  -- print ("-----",r)
   if not Models[mark][r] then
 	  for f,v in pairs(Models[mark]) do
-		 if v == r then
-			return f
-		 end
+	       --print (f.."|"..v.."|"..r) 		 
+	       if v == r then
+		    --print ("--") 	
+		    return f
+	       end
 	  end
   else
 	  return r
   end
 end
 
-function detectPart(s)
+function detectPart(s, a)
    local P={}
    for f,v in pairs(Parts) do
 	  table.insert(P, f)
       if  v ~="" then table.insert(P, v) end    
    end
 
-   local r = recognizeFuzzyPatterns(s, P)
+   local r = recognizeFuzzyPatterns(s, P) or recognizeFuzzyPatterns(a, P)
    
-   if not r then
-	  return ("Прочая запчасть")
+   if not r then      	  
+      	  return ("Прочая запчасть")
    elseif not Parts[r] then
 	  for f,v in pairs(Parts) do
 		 if v == r then
@@ -102,6 +111,10 @@ function detectPart(s)
 	  return r
    end
 end
+
+detectMark=memoize(detectMark)				       -- меморизация для скорости
+detectModel=memoize(detectModel)
+detectPart=memoize(detectPart)
 
 local function clearJunk(a)
 	a = utf8.gsub(a,"%("," ")			-- чистим от скобок
@@ -219,20 +232,20 @@ end
 function Proceed(a) 							REM (">> Proceed", a)
 	a=clearJunk(a)	
 	local Mk, Md, Vs, Yr, Dt = parseStr (a)	
-	local Mk2=detectMark(a)
+	local Mk2=detectMark(Mk, a)
 	if not Mk2 then
 	    print(a, colors("%{redbg}Mark is not recognized"), Mk)
 	    return nil
 	end
 
-	local Md2=detectModel(a,Mk2)
+	local Md2=detectModel(Md,a,Mk2)
 	
 	if not Md2 then
 	    print(a, colors("%{redbg}Model is not recognized"))
 	    Md2 = Md
 	end
 	
-	local Dt2=detectPart(a)
+	local Dt2=detectPart(Dt, a)
 	
 	if not Yr then
 	    Yr=2015
