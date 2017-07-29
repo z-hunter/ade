@@ -95,9 +95,10 @@ outLog.doInput = function ()						--> Parts table or nil if no file
 	if not f then return nil; end
 	print ("Previos out\data.csv found, reading...")
 	local tParts = {}
-	local num = 1
+	local num = 1	
 	for line in f:lines() do
-		--*1МАРКА	*2МОДЕЛЬ	3ВЕРСИЯ	*4ГОД	5ТОПЛИВО	6ОБЪЕМ	7ТИП_ДВИГ	8КОРОБКА	9ТИП_КУЗОВА	*10ЗАПЧАСТЬ	11ОПИСАНИЕ
+	  if line ~= "МАРКА;МОДЕЛЬ;ВЕРСИЯ;ГОД;ТОПЛИВО;ОБЪЕМ;ТИП ДВИГАТЕЛЯ;КОРОБКА;ТИП КУЗОВА;ЗАПЧАСТЬ;ОПИСАНИЕ;ОРИГИНАЛЬНЫЙ НОМЕР;СКЛАДСКАЯ ИНФОРМАЦИЯ;ЦЕНА;ВАЛЮТА;СКИДКА;ГОРОД;ТЕЛЕФОНЫ;EMAIL;ИМЯ;ФОТО;ID_ABW;ID_EXT;"	 then
+	--*1МАРКА	*2МОДЕЛЬ	3ВЕРСИЯ	*4ГОД	5ТОПЛИВО	6ОБЪЕМ	7ТИП_ДВИГ	8КОРОБКА	9ТИП_КУЗОВА	*10ЗАПЧАСТЬ	11ОПИСАНИЕ
 		--12ОРИГ_НОМЕР	13СКЛАДСК_ИНФ 14ЦЕНА	15ВАЛЮТА	16СКИДКА	17ГОРОД	18ТЕЛЕФОНЫ	19EMAIL	20ИМЯ	21ФОТО	22ID_ABW	*23ID_EXT		
 		local t=parseCSVLine(line) 
 		tParts[t[23]] = {}										REM(t[23])
@@ -123,12 +124,14 @@ outLog.doInput = function ()						--> Parts table or nil if no file
 			table.insert(T.Pics, picst)
 		end
 		for k2, v2 in pairs(T.Pics) do												
+				--print (v2)
 				local _, p = utf8.find (v2, "/adepics/")							
 				v2 = utf8.sub(v2, p+1)
 				T.Pics[k2] =  v2; REM(k2, T.Pics[k2])
 		end
 
 		num = num+1
+	  end
 	end
 	print (">>> Previous records loaded from out/data.csv: "..num-1)
 	
@@ -246,7 +249,7 @@ function getParts(Parts, page)				-- page =текст страницы --> table
 		local i = sha1(suburl)							REM( "Хэш", i)
 		
 		if skip then 
-			print ("Skipping item."))
+			print (colors("%{redbg}Skipping item."))
 		elseif not Parts[i] then												-- определяем, есть ли такая запись в базее
 			Parts[i]={}									REM( "Cоздаём новую запись в Parts", Mk..Md..Dt)
 			Parts[i].status="new"
