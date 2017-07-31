@@ -1,9 +1,9 @@
 dofile "findfuzzy.lua"
-local colors = require 'ansicolors'
+--local colors = require 'ansicolors'
 dofile "models.lua"
 dofile "parts.lua"
 local utf8 = require 'lua-utf8'
-local memoize = require 'memoize'
+
 
 function dumpArray(T)
    for k, v in pairs(T) do
@@ -31,10 +31,10 @@ function defakeLatinLetters(s)
    return s
 end
 
-for k,v in pairs (Models) do
+for k,v in pairs (Models) do					  -- Автодополнение таблицы Models..
    for k2, v2 in pairs(v) do
       if v2=="" then
-	 Models[k][k2]= defakeLatinLetters(k2)
+	 Models[k][k2]= defakeLatinLetters(k2)			  -- ..вариантами с русскими буквами вместо латинских аналогов
       end
    end
 end
@@ -112,9 +112,6 @@ function detectPart(s, a)
    end
 end
 
-detectMark=memoize(detectMark)				       -- меморизация для скорости
-detectModel=memoize(detectModel)
-detectPart=memoize(detectPart)
 
 local function clearJunk(a)
 	a = utf8.gsub(a,"%("," ")			-- чистим от скобок
@@ -143,6 +140,7 @@ local function singleYear(d)		 --> преобразованная в 4 цифр�
 	 d = d:sub(1,pos-1) 
      end
      if d:len() == 2 then d = "20"..d end
+     d=d:sub(1,4)
      return d
 end
 

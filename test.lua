@@ -1,7 +1,7 @@
+fuzzel = require("fuzzel")
+utf8 = require 'lua-utf8'
 require "findfuzzy"
 require "proceed"
-local fuzzel = require("fuzzel")
-local utf8 = require 'lua-utf8'
 
 function REM(n, m)	    -- debug print (and remark)
 	if isDebugMode then
@@ -21,4 +21,6 @@ end]]
 
 
 
-print(Proceed("Лексус LS-460 абсорбер переднего бампера"))
+print(Proceed(s))
+
+

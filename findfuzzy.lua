@@ -1,7 +1,6 @@
 local fuzzel = require("fuzzel")
 local utf8 = require 'lua-utf8'
-local memoize = require 'memoize'
-fuzzel.FuzzyFindDistance=memoize(fuzzel.FuzzyFindDistance)
+
 
 function recognizeFuzzyPatterns(str, Pat)
 	
