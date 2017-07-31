@@ -37,7 +37,7 @@ harvester2 = newHarvester[[
 ]]
 
 --isDebugMode = true						
-rebuild = true 											-- распознавать заново уже имеющиеся в базе товары 
+--rebuild = true 											-- распознавать заново уже имеющиеся в базе товары 
 
 function getCurrate()			    --> стоимость одного российского рубля в белорусских
     local harvester3=newHarvester[[
@@ -263,8 +263,8 @@ function getParts(Parts, page)				-- page =текст страницы --> table
 				serrors = serrors+1
 				skip=true
 			else		
-				Parts[i]={}									REM( "Cоздаём новую запись в Parts", Mk..Md..Dt)				
 				if not Parts[i] then
+					Parts[i]={}									REM( "Cоздаём новую запись в Parts", Mk..Md..Dt)				
 					Parts[i].status="new"
 					subpage=get(suburl, CT)		--									: subpage
 					loadedQ=loadedQ+1
