@@ -37,7 +37,7 @@ harvester2 = newHarvester[[
 ]]
 
 --isDebugMode = true						
---rebuild = true 											-- распознавать заново уже имеющиеся в базе товары 
+rebuild = true 											-- распознавать заново уже имеющиеся в базе товары 
 
 function getCurrate()			    --> стоимость одного российского рубля в белорусских
     local harvester3=newHarvester[[
@@ -252,26 +252,28 @@ function getParts(Parts, page)				-- page =текст страницы --> table
 		local suburl=urlroot..v.link		-- ссылка на подстраницу с фото     
 		local subpage						-- для текста подстраницы 
 		local i = sha1(suburl)							REM( "Хэш", i)
-											
-	    		
+		
+	    local Mk, Md, Vs, Yr, Dt
 		if skip then 
 			print (colors("%{redbg}Skipping item."))
-		elseif not Parts[i] and not rebuild then												-- определяем, есть ли такая запись в базее
-			local Mk, Md, Vs, Yr, Dt = Proceed(v.title)	   				-- парсим текст, получаем: Марку,Модель,Версию,Год,Название (остальное извлекли выше)
+		elseif rebuild or not Parts[i]  then												-- определяем, есть ли такая запись в базее
+			Mk, Md, Vs, Yr, Dt = Proceed(v.title)	   				-- парсим текст, получаем: Марку,Модель,Версию,Год,Название (остальное извлекли выше)
 			if not Dt then 
 				print ("Item Dt is not found", v.title);
 				serrors = serrors+1
 				skip=true
 			else		
-				Parts[i]={}									REM( "Cоздаём новую запись в Parts", Mk..Md..Dt)
-				Parts[i].status="new"
-				subpage=get(suburl, CT)		--									: subpage
-				loadedQ=loadedQ+1
-				if not subpage then
-					print ("Cannot get subpage of item, skipping item ", v.title)	
-					serrors=serrors+1
-					Parts[i]=nil
-					skip=true
+				Parts[i]={}									REM( "Cоздаём новую запись в Parts", Mk..Md..Dt)				
+				if not Parts[i] then
+					Parts[i].status="new"
+					subpage=get(suburl, CT)		--									: subpage
+					loadedQ=loadedQ+1
+					if not subpage then
+						print ("Cannot get subpage of item, skipping item ", v.title)	
+						serrors=serrors+1
+						Parts[i]=nil
+						skip=true
+					end
 				end
 			end
 		else 											
@@ -281,7 +283,7 @@ function getParts(Parts, page)				-- page =текст страницы --> table
 		if not skip then
 		--Parts[i].num = num2
 			--num2=num2+1
-			if Parts[i].status=="new" then
+			if rebuild or Parts[i].status=="new" then
 				Parts[i].De = v.title
 				Parts[i].Mk = Mk
 				Parts[i].Md = Md
