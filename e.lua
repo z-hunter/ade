@@ -2,8 +2,8 @@ local url = "https://www.avito.ru/avtofortune"
 local urlroot = "https://www.avito.ru"
 local urlpost = "/rossiya?p="
 local urladepics = "http://d0009440.atservers.net/adepics/"										-- http путь до картинок на хостинге, должен оканчиватся "/adepics/"
-local Kx1 = 1.1						-- Ценовой умножитель 1
-local Kx2 = 1.3						-- Ценовой умножитель 2
+local Kx1 = 1.5						-- Ценовой умножитель 1
+local Kx2 = 2						-- Ценовой умножитель 2
 local Kn = 200						-- Порог цены (в бел. руб.), ниже которого умножается на Kx1 а с него и выше на Kx2
 
 colors = require 'ansicolors'
@@ -37,7 +37,7 @@ harvester2 = newHarvester[[
 ]]
 
 --isDebugMode = true						
---rebuild = true 											-- распознавать заново уже имеющиеся в базе товары 
+--rebuild = true 											-- распознавать заново уже имеющиеся в базе товары  (но не скачивать подстраницы/картинки заново)
 
 function getCurrate()			    --> стоимость одного российского рубля в белорусских
     local harvester3=newHarvester[[
@@ -101,7 +101,7 @@ outLog.doInput = function ()						--> Parts table or nil if no file
 	local tParts = {}
 	local num = 1	
 	for line in f:lines() do
-	  if line ~= "МАРКА;МОДЕЛЬ;ВЕРСИЯ;ГОД;ТОПЛИВО;ОБЪЕМ;ТИП ДВИГАТЕЛЯ;КОРОБКА;ТИП КУЗОВА;ЗАПЧАСТЬ;ОПИСАНИЕ;ОРИГИНАЛЬНЫЙ НОМЕР;СКЛАДСКАЯ ИНФОРМАЦИЯ;ЦЕНА;ВАЛЮТА;СКИДКА;ГОРОД;ТЕЛЕФОНЫ;EMAIL;ИМЯ;ФОТО;ID_ABW;ID_EXT;"	 then
+	  if utf8.sub(line,1,6) ~= "МАРКА;"	 then
 		local t=parseCSVLine(line) 
 		tParts[t[23]] = {}										REM(t[23])
 		local T = tParts[t[23]]		
@@ -162,13 +162,14 @@ outLog.init = function()		    -- подготовить выходной кат�
 end
 outLog.doOutput = function (Parts)	    -- Добавляет в data.csv записи Parts 
     local f = io.open("out/data.csv", 'w')   
-    local excel="МАРКА;МОДЕЛЬ;ВЕРСИЯ;ГОД;ТОПЛИВО;ОБЪЕМ;ТИП ДВИГАТЕЛЯ;КОРОБКА;ТИП КУЗОВА;ЗАПЧАСТЬ;ОПИСАНИЕ;ОРИГИНАЛЬНЫЙ НОМЕР;СКЛАДСКАЯ ИНФОРМАЦИЯ;ЦЕНА;ВАЛЮТА;СКИДКА;ГОРОД;ТЕЛЕФОНЫ;EMAIL;ИМЯ;ФОТО;ID_ABW;ID_EXT;\n"													-- буфер 
+    local excel="МАРКА;МОДЕЛЬ;ВЕРСИЯ;ГОД;ТОПЛИВО;ОБЪЕМ;ТИП ДВИГАТЕЛЯ;КОРОБКА;ТИП КУЗОВА;ЗАПЧАСТЬ;ОПИСАНИЕ;ОРИГИНАЛЬНЫЙ НОМЕР;СКЛАДСКАЯ ИНФОРМАЦИЯ;ЦЕНА;ВАЛЮТА;СКИДКА;ГОРОД;ТЕЛЕФОНЫ;EMAIL;ИМЯ;ФОТО;ID_ABW;ID_EXT\n"													-- буфер 
 	local count = 0
+	
 	for k, v in pairs(Parts) do                							REM ("Пишем в csv деталь", v.Mk..v.Md..v.Dt)		
-		local tmp = '"Mk666";"Md666";"Vs666";"Yr666";;;;;;"Dt666";"De666";;"Url666";"Pr666";"BYR";;;;;;"Pic666";;"Id666";'
+		local tmp = '"Mk666";"Md666";"Vs666";"Yr666";;;;;;"Dt666";"";;"Url666";"Pr666";"BYN";;;;;;"Pic666";;"Id666"'
 		--*1МАРКА	*2МОДЕЛЬ	3ВЕРСИЯ	*4ГОД	5ТОПЛИВО	6ОБЪЕМ	7ТИП_ДВИГ	8КОРОБКА	9ТИП_КУЗОВА	*10ЗАПЧАСТЬ	11ОПИСАНИЕ
 		--12ОРИГ_НОМЕР	13СКЛАДСК_ИНФ 14ЦЕНА	15ВАЛЮТА	16СКИДКА	17ГОРОД	18ТЕЛЕФОНЫ	19EMAIL	20ИМЯ	21ФОТО	22ID_ABW	*23ID_EXT
-		
+		Parts[k].Url= utf8.gsub(Parts[k].Url,"https://www.avito.ru/moskva/","")
 		for k2, v2 in pairs(v) do										-- подменяем в шаблоне названия полей записи Parts их содержимым
 			tmp = utf8.gsub(tmp, k2..'666', v2)							-- 666 чтобы не перепутать текст с шаблоном и не запороть его
 		end
@@ -298,6 +299,10 @@ function getParts(Parts, page)				-- page =текст страницы --> table
 			else
 				v.price = v.price * Kx2
 			end
+			local function round(n, mult) 
+				return math.ceil((n + mult/2)/mult) * mult
+			end
+			v.price=round(v.price,5)
 			v.price=tostring(v.price)
 			v.price = utf8.gsub(v.price,"%.",",")	    -- десятичную точку в запятую для русского Экселя
 			Parts[i].Pr = v.price
@@ -407,7 +412,7 @@ for i=2, pq do					-- проходим по остальным страница�
 	local sertmp=0
 	local newurl=url..urlpost..tostring(i)    
 	local delay 
-	if loadedQ <9 then delay = nil
+	if loadedQ <9 then delay = 1
 	else delay=300
 	end
 	page = getNotEmpty(newurl, delay)
@@ -437,8 +442,10 @@ io.write(collectgarbage("count"),"\n")
 outLog.init()
 outLog.doOutput(Parts)
 print("Processing pictures...")
-os.execute("bin\\nconvert.exe -quiet -wmflag bottom-left -wmfile wm.png -overwrite -o out\\%  out\\raw\\*.jpg")
+os.execute("bin\\nconvert.exe -quiet -wmflag bottom-left -wmfile wm.png -overwrite -o out\\raw\\%  out\\raw\\*.jpg")
+os.execute("bin\\nconvert.exe -quiet -autocrop 40 255 255 255 -overwrite -o out\\%  out\\raw\\*.jpg")
 os.execute("del /f /q out\\raw\\*.* " )
+
 
 local Hour2 = os.date("%H")
 local Min2 = os.date("%M")

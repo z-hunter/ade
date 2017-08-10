@@ -10,17 +10,7 @@ function REM(n, m)	    -- debug print (and remark)
 	end
  end
 
-s= "Ситроен С4 1  05-11  решетка радиатора"
-
-
---[[for f,v in pairs(Parts) do
-   table.insert(P, f)
-   if v ~="" then table.insert(P, f) end 
-end]]
-
-
-
+s= "Ситроен С4 1  05-11  передний бампер"
 
 print(Proceed(s))
-
 
