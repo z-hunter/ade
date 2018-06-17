@@ -2,9 +2,16 @@ local url = "https://www.avito.ru/avtofortune"
 local urlroot = "https://www.avito.ru"
 local urlpost = "/rossiya?p="
 local urladepics = "http://d0009440.atservers.net/adepics/"										-- http путь до картинок на хостинге, должен оканчиватся "/adepics/"
-local Kx1 = 1.5						-- Ценовой умножитель 1
-local Kx2 = 2						-- Ценовой умножитель 2
-local Kn = 200						-- Порог цены (в бел. руб.), ниже которого умножается на Kx1 а с него и выше на Kx2
+
+Kx1 = 1.5		-- Ценовой умножитель 1
+Kx2 = 2		     	-- Ценовой умножитель 2
+Kx3 = 4			-- Ценовой умножитель 3
+
+Kn2 = 200	     	-- Порог цены (в бел. руб.), ниже которого умножается на Kx1 а с него и выше на Kx2
+Kn3 = 400	     	-- Порог цены (в бел. руб.), ниже которого умножается на Kx2 а с него и выше на Kx3
+
+
+
 
 colors = require 'ansicolors'
 utf8 = require 'lua-utf8'
@@ -20,15 +27,20 @@ os.execute("cls")  print(Sign())
 
 -- Шаблон парсинга страниц 
 harvester = newHarvester[[		
-	 {repeat e}
-        <div class="item_table-header">
-        <h3 class="title item-description-title"> <a class="item-description-title-link" href="{value link}"
-		title="
-		">{value title} </a>
-		<div class="about">{value price}руб.
-		</div> </div> </div> </div>
-     {/repeat}
+ {repeat e} 
+ <div class="item_table-header">
+  <h3 class="title item-description-title"> <a class="item-description-title-link"
+  href="{value link}"
+ title="
+ ">
+{value title}
+ </a>
+  <div class="about ">
+   {value price} руб. 
+  {/repeat}
 ]]										
+
+										
 -- Шаблон парсинга подстраниц на предмет картинок
 harvester2 = newHarvester[[
 		{repeat e}
@@ -141,7 +153,7 @@ outLog.doInput = function ()						--> Parts table or nil if no file
 end
 
 outLog.init = function()		    -- подготовить выходной каталог и создать/обнулить файл данных
-   os.execute("copy /Y out\\data.csv *.bak >nul")  
+   os.execute("copy /Y out\\data.csv *.bak >nul")   
    local f = io.open('out/TEST.txt', 'w')
    if not f then
 	os.execute('mkdir out')
@@ -157,13 +169,14 @@ outLog.init = function()		    -- подготовить выходной кат�
 		os.remove('out/raw/TEST.txt')
    end
    local f, ermsg = io.open("out/data.csv", 'w')   -- Открываем на перезапись
+   print ("Output file: out/data.csv", ermsg or '')
    f:close()
-   print ("Output file: out/data.csv", ermsg or '')   
 end
+
 outLog.doOutput = function (Parts)	    -- Добавляет в data.csv записи Parts 
-    local f = io.open("out/data.csv", 'w')   
+    local f = io.open("out/data.csv", 'a')   
     local excel="МАРКА;МОДЕЛЬ;ВЕРСИЯ;ГОД;ТОПЛИВО;ОБЪЕМ;ТИП ДВИГАТЕЛЯ;КОРОБКА;ТИП КУЗОВА;ЗАПЧАСТЬ;ОПИСАНИЕ;ОРИГИНАЛЬНЫЙ НОМЕР;СКЛАДСКАЯ ИНФОРМАЦИЯ;ЦЕНА;ВАЛЮТА;СКИДКА;ГОРОД;ТЕЛЕФОНЫ;EMAIL;ИМЯ;ФОТО;ID_ABW;ID_EXT\n"													-- буфер 
-	local count = 0
+	local count, count2 = 0,0
 	
 	for k, v in pairs(Parts) do                							REM ("Пишем в csv деталь", v.Mk..v.Md..v.Dt)		
 		local tmp = '"Mk666";"Md666";"Vs666";"Yr666";;;;;;"Dt666";"";;"Url666";"Pr666";"BYN";;;;;;"Pic666";;"Id666"'
@@ -182,7 +195,12 @@ outLog.doOutput = function (Parts)	    -- Добавляет в data.csv зап�
 		end
 		tmp = utf8.gsub(tmp, "Pic666", pic)	
 		excel=(excel..tmp.."\n")										-- добавляем получившуюся строку в буфер
-		count = count+1
+		count = count+1; count2 = count2+1
+		if count2>2000 then
+		  assert(f:write(excel))
+		  count2=0
+		  excel=""
+	       end
 	end
     assert(f:write(excel))												-- добавляем буфер к файлу
 	print ("Saved "..count.." items in file")
@@ -195,7 +213,7 @@ function procParts(Parts)					--удалить из базы неактуаль�
 	--isDebugMode=true
 	local sok, snew, sdel = 0,0,0			REM(">>> procParts()")
 	for k, v in pairs(Parts) do				REM( "Проверяем", _)
-		if v.status == "new" then			REM("- новый")
+	       if v.status == "new" then
 			v.status = "done"
 			snew=snew+1
 		elseif v.status == "ok" then			REM("- старый подтвержденный")
@@ -236,28 +254,22 @@ function getParts(Parts, page)				-- page =текст страницы --> table
 		v.title = utf8.gsub(v.title,"\n","")			-- чистим текст от переводов строк
 		v.title = utf8.gsub(v.title,"  "," ")			-- и от двойных пробелов
 		
+		v.price=preparePrice(v.price)
 		if not v.price then 						-- если не выловлено строки с ценой, то не допускаем чтобы gsub выдал на ней ошибку
 			print ("No price found ", v.title);
 			serrors = serrors+1
 			skip=true
-		else										-- строка есть
-			v.price = utf8.gsub(v.price,"%s","")	    -- пробелы препятствуют tonumber 
-			v.price = tonumber(v.price)
-			if not v.price then 						-- строка не переводится в число
-				print (v.price, " : Not numeric in price str ", v.title)
-				serrors=serrors+1
-				skip=true
-			end	
 		end	
 				
 		local suburl=urlroot..v.link		-- ссылка на подстраницу с фото     
 		local subpage						-- для текста подстраницы 
-		local i = sha1(suburl)							REM( "Хэш", i)
-		
+		local i = sha1(v.link)							REM( "Хэш", i)
+	        --local i = v.link							
+
 	    local Mk, Md, Vs, Yr, Dt
 		if skip then 
 			print (colors("%{redbg}Skipping item."))
-		elseif rebuild or not Parts[i]  then												-- определяем, есть ли такая запись в базее
+		elseif rebuild or (not Parts[i])  then												-- определяем, есть ли такая запись в базее
 			Mk, Md, Vs, Yr, Dt = Proceed(v.title)	   				-- парсим текст, получаем: Марку,Модель,Версию,Год,Название (остальное извлекли выше)
 			if not Dt then 
 				print ("Item Dt is not found", v.title);
@@ -291,21 +303,9 @@ function getParts(Parts, page)				-- page =текст страницы --> table
 				Parts[i].Vs = Vs or ""
 				Parts[i].Yr = Yr or ""
 				Parts[i].Dt = Dt
-			end
+			end		  			
 			
-			v.price = v.price * currate --	переводим в рубли
-			if v.price < Kn	then
-				v.price = v.price * Kx1
-			else
-				v.price = v.price * Kx2
-			end
-			local function round(n, mult) 
-				return math.ceil((n + mult/2)/mult) * mult
-			end
-			v.price=round(v.price,5)
-			v.price=tostring(v.price)
-			v.price = utf8.gsub(v.price,"%.",",")	    -- десятичную точку в запятую для русского Экселя
-			Parts[i].Pr = v.price
+			Parts[i].Pr =v.price
 			if Parts[i].status=="ok" then
 				io.write("already in base ")
 			end
@@ -370,7 +370,7 @@ end;
 
 
 -- --- -- -- -- -- -- -- --- -- -- -- -- -- -- --- -- -- -- -- -- 
---fuzzel.FuzzyFindDistance=memoize(fuzzel.FuzzyFindDistance)		-- включаем меморизацию для скорости
+fuzzel.FuzzyFindDistance=memoize(fuzzel.FuzzyFindDistance)		-- включаем меморизацию для скорости
 recognizeFuzzyPatterns=memoize(recognizeFuzzyPatterns)
 detectMark=memoize(detectMark)				       
 detectModel=memoize(detectModel)
@@ -402,8 +402,8 @@ end
 local Parts = outLog.doInput() or {}
 local loadedQ
 local serrors=0
+outLog.init()
 Parts, loadedQ, serrors = getParts(Parts, page)			-- обрабатываем первую отдельно (она уже загружена в page)
---outLog.init()
 --outLog.doOutput(Parts)
 
 for i=2, pq do					-- проходим по остальным страницам 
@@ -431,7 +431,7 @@ local sok, snew, sdel = procParts(Parts)
 print()
 print ("discharging memory... ")
 io.write(collectgarbage("count"),"-->")
---fuzzel.FuzzyFindDistance=memoize(fuzzel.FuzzyFindDistance)		-- 
+fuzzel.FuzzyFindDistance=memoize(fuzzel.FuzzyFindDistance)		-- 
 recognizeFuzzyPatterns=memoize(recognizeFuzzyPatterns)
 detectMark=memoize(detectMark)				       
 detectModel=memoize(detectModel)
@@ -439,7 +439,6 @@ detectPart=memoize(detectPart)
 collectgarbage("collect")
 io.write(collectgarbage("count"),"\n")
 
-outLog.init()
 outLog.doOutput(Parts)
 print("Processing pictures...")
 os.execute("bin\\nconvert.exe -quiet -wmflag bottom-left -wmfile wm.png -overwrite -o out\\raw\\%  out\\raw\\*.jpg")

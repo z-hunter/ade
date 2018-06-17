@@ -5,6 +5,27 @@ dofile "parts.lua"
 local utf8 = require 'lua-utf8'
 
 
+function preparePrice(p)	--  исходную цену преобразуем в нужную валюту и текстовый формат
+	p = utf8.gsub(p,"%s","")	    -- пробелы препятствуют tonumber
+	p=tonumber(p)
+	if not p then return nil end
+	p = p * currate 			--	переводим в рубли согласно глобальной currate
+	if p < Kn2	then			--  применяем глобальные умножители  Kx1,Kx2,Kx3 и их пороговые значения Kn2, Kn3
+		p = p * Kx1
+	elseif p < Kn3 then
+		p = p * Kx2
+	else 
+		p = p * Kx3
+	end	
+	local function round(n, mult) 
+		return math.ceil((n + mult/2)/mult) * mult
+	end
+	p=round(p,5)
+	p=tostring(p)
+	p = utf8.gsub(p,"%.",",")	    -- десятичную точку в запятую для русского Экселя
+	return p
+end
+
 function dumpArray(T)
    for k, v in pairs(T) do
 	  print (k,v)
@@ -65,28 +86,32 @@ end
 
 function detectModel(s, a, mark)
    local P={}
-   for f,v in pairs(Models[mark]) do
-	  if f ~="nam" then		 
-		 table.insert(P, f)
-		 if  v ~="" then
-			table.insert(P, v)
-		 end    
-	  end
-   end
-   --dumpArray(P)
-   --print()
-  local r = recognizeFuzzyPatterns(s, P) or recognizeFuzzyPatterns(a, P)
-  -- print ("-----",r)
-  if not Models[mark][r] then
-	  for f,v in pairs(Models[mark]) do
-	       --print (f.."|"..v.."|"..r) 		 
-	       if v == r then
-		    --print ("--") 	
-		    return f
-	       end
-	  end
-  else
-	  return r
+   if Models[mark] then
+        for f,v in pairs(Models[mark]) do
+        if f ~="nam" then		 
+         table.insert(P, f)
+         if  v ~="" then
+          table.insert(P, v)
+         end    
+        end
+       end
+     
+     --dumpArray(P)
+     --print()
+    local r = recognizeFuzzyPatterns(s, P) or recognizeFuzzyPatterns(a, P)
+    -- print ("-----",r)
+    if not Models[mark][r] then
+      for f,v in pairs(Models[mark]) do
+           --print (f.."|"..v.."|"..r) 		 
+           if v == r then
+          --print ("--") 	
+          return f
+           end
+      end
+    else
+      return r
+    end
+  else return nil
   end
 end
 
@@ -133,14 +158,20 @@ local function trimSpaces(s)     --> строку s без пробелов в �
    return (utf8.match(s, "^%s*(.-)%s*$") )
 end
 
-local function singleYear(d)		 --> преобразованная в 4 цифры строку d (год или интервал лет через тире)
+function singleYear(d)		 --> преобразованная в 4 цифры строку d (год или интервал лет через тире)
      d=trimSpaces(d)
      local pos = d:find("-")
      if pos then
 	 d = d:sub(1,pos-1) 
      end
+	 if d:len() > 4 then
+		pos = d:find("%d%d%d%d")
+		if pos then 
+			d=d:sub(pos,pos+4)
+		end
+	 end
      if d:len() == 2 then d = "20"..d end
-     d=d:sub(1,4)
+     --d=d:sub(1,4)
      return d
 end
 
@@ -263,7 +294,7 @@ end
 
 
 function Sign()
-	return(colors('░▒▓█%{reverse} A-D-Extractor %{reset}  v.0.5 © Michael.Voitovich@gmail.com, 2017'))
+	return(colors('░▒▓█%{reverse} A-D-E  %{reset}  v.2.0.0 © Michael.Voitovich@gmail.com, 2017-2018'))
 end
 
 
